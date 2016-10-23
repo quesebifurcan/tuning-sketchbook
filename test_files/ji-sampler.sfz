@@ -1,0 +1,9 @@
+<group> 
+loop_mode=no_loop
+lovel=0
+hivel=127
+
+<region> trigger=attack  pitch_keycenter=60 tune=0 lokey=60 hikey=60 sample=c3.wav
+<region> trigger=attack  pitch_keycenter=61 tune=15 lokey=61 hikey=61 sample=060-c3.wav
+<region> trigger=attack  pitch_keycenter=62 tune=30 lokey=62 hikey=62 sample=060-c3.wav
+<region> trigger=attack  pitch_keycenter=63 tune=45 lokey=63 hikey=63 sample=060-c3.wav
