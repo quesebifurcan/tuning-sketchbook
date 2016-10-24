@@ -1,6 +1,5 @@
 import argparse
 import collections
-import itertools
 import os
 import subprocess
 import shutil
@@ -11,7 +10,7 @@ DESCRIPTION = """
 Segment an audio file into multiple parts.
 
 Derive segment names and segment durations from pitches and durations
-found in the midi file.
+found in a midi file.
 
 Run like this:
 
@@ -48,6 +47,7 @@ Requires ffmpeg, python-midi (on branch feature/python3)
 
 FADE_DURATION = 0.3
 EARLY_CUTOFF = 0.1
+MIN_SEGMENT_DURATION = 1
 
 
 def trim(infile_path, segment_time):
@@ -70,7 +70,7 @@ def trim(infile_path, segment_time):
     shutil.move(tempfile_path, infile_path)
 
 
-def segment_audio_file(infile_path, segment_times):
+def split_audio_file(infile_path, segment_times):
     _, file_extension = os.path.splitext(infile_path)
     if not file_extension == '.aif':
         msg = 'Expected an .aif file, got {}'
@@ -91,9 +91,9 @@ def segment_audio_file(infile_path, segment_times):
 
 
 SegmentationData = collections.namedtuple('SegmentationData', [
-    'segment_times',
+    'split_points',
     'root_pitches',
-    'durations',
+    'segment_duration',
 ])
 
 
@@ -103,28 +103,33 @@ def get_segmentation_data(midi_file, ppq=96, tempo=120):
     pattern.make_ticks_abs()
     midi_events = pattern[0]
 
-    note_events = filter(
-        lambda event: isinstance(event, (midi.NoteOnEvent,
-                                         midi.NoteOffEvent)),
-        midi_events,
+    onset_filter = lambda event: isinstance(event, midi.NoteOnEvent)
+    onset_events = list(filter(onset_filter, midi_events))
+
+    # Segment duration
+    segment_duration = (
+        onset_in_seconds(onset_events[1].tick, ppq, tempo) -
+        onset_in_seconds(onset_events[0].tick, ppq, tempo)
     )
-    onsets = []
-    pitches = []
-    durations = []
+    if segment_duration < MIN_SEGMENT_DURATION:
+        msg = (
+            'Segment duration can not be shorter than {min_segment_duration} '
+            'second, please check that the intervals between successive '
+            'NoteOnEvents in the midifile are not too short.'
+        )
+        raise Exception(msg.format(min_segment_duration=MIN_SEGMENT_DURATION))
+    # Root pitches
+    pitches = [event.pitch for event in onset_events]
+    # Split points
+    split_points = []
     curr_onset = 0
-    for event in list(note_events):
-        print(event)
-        if isinstance(event, midi.NoteOnEvent):
-            curr_onset = onset_in_seconds(event.tick, ppq, tempo)
-            onsets.append(curr_onset)
-            pitches.append(event.pitch)
-        elif isinstance(event, midi.NoteOffEvent):
-            duration = (onset_in_seconds(event.tick, ppq, tempo) - curr_onset)
-            durations.append(duration)
+    for _ in pitches[:-1]:
+        curr_onset += segment_duration
+        split_points.append(curr_onset)
     return SegmentationData(
-        segment_times=onsets[1:],
+        segment_duration=segment_duration,
         root_pitches=pitches,
-        durations=durations,
+        split_points=split_points,
     )
 
 
@@ -168,13 +173,10 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.chdir(tmpdir)
-        segment_audio_file(infile_audio, segmentation_data.segment_times)
-        for split_file, duration, pitch in zip(
-                os.listdir('.'),
-                segmentation_data.durations,
-                segmentation_data.root_pitches,
-            ):
-            trim(split_file, duration)
+        split_audio_file(infile_audio, segmentation_data.split_points)
+        for split_file, pitch in zip(os.listdir('.'),
+                                     segmentation_data.root_pitches):
+            trim(split_file, segmentation_data.segment_duration)
             outfile = '{pitch}.aif'.format(pitch=pitch)
             basename = os.path.basename(split_file)
             shutil.move(basename, os.path.join(outdir, outfile))
