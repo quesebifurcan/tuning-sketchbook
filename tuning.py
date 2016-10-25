@@ -20,20 +20,14 @@ def build_scale(ratios):
     return sorted(set(pitchclasses))
 
 
-def main():
+def scale_13_limit_JI():
     base_ratios = [
         Fraction(1, 1),
         Fraction(3, 2),
         Fraction(5, 4),
         Fraction(7, 4),
-        Fraction(11, 8),
-        Fraction(13, 8),
+        # Fraction(11, 8),
+        # Fraction(13, 8),
     ]
-    inverted_ratios = [1/r for r in base_ratios]
-    scale = build_scale(base_ratios + inverted_ratios)
-    for p in scale:
-        print(p)
-
-
-if __name__ == '__main__':
-    main()
+    inverted_ratios = [(1 / r) for r in base_ratios]
+    return build_scale(base_ratios + inverted_ratios)
