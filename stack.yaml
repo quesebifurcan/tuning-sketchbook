@@ -1,0 +1,10 @@
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+extra-deps:
+- event-list-0.1.1.3
+- midi-0.2.2.1
+- monoid-transformer-0.0.3
+- non-negative-0.1.1
+resolver: lts-7.5
