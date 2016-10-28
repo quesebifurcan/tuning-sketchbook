@@ -3,6 +3,7 @@
 import Prelude hiding (FilePath)
 import Codec.Midi as Midi
 import Control.Exception
+import Control.Monad
 import qualified Control.Foldl as Fold
 import Data.Either
 import qualified Data.Text as Text
@@ -94,8 +95,7 @@ run infileMidi infileAudio outDir = sh (do
     outFileNames <- fold (select (map buildFileName $ pitches values)) Fold.list
     (splitFile, outFileName) <- select (zip splitFiles outFileNames)
     trimFile splitFile
-    mv splitFile (outDir </> outFileName)
-    )
+    mv splitFile (outDir </> outFileName))
 
 argParser :: Parser (FilePath, FilePath, FilePath)
 argParser =
