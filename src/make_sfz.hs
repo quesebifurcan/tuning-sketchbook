@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import qualified Data.Text as Text
+import qualified Control.Foldl as Fold
 import Prelude hiding (FilePath)
 import Turtle
 import Music.Theory.Tuning.Scala
@@ -42,6 +43,17 @@ argParser =
   (,) <$>
   argPath "sclFile" "Path to an .scl file" <*>
   argDouble "baseFreq" "Base frequency"
+
+-- testFile :: MonadIO io => io [FilePath]
+-- testFile =
+--   Turtle.fold (lstree "/Users/fred/Documents/TownHallOrgan_SP/Samples/PRE1") Fold.list
+
+pitchParser :: Pattern (Char, Maybe Text, Char)
+pitchParser = do
+  pitch <- oneOf "ABCDEFG"
+  accidental <- optional "#"
+  octave <- digit
+  return (pitch, accidental, octave)
 
 main :: IO ()
 main = do
