@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import qualified Data.Text as Text
+import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Control.Foldl as Fold
@@ -10,13 +11,6 @@ import Turtle
 import Music.Theory.Tuning.Scala
 import Music.Theory.Tuning
 
--- Example:
---
--- $ stack runghc src/make_sfz.hs test_files/young-lm_piano.scl 440
---
--- results in:
---
--- [[69.0,0.0],[71.0,-0.2335409006932565],[71.0,3.9100017307745816e-2],[71.0,0.39606813803636953],[74.0,-0.29219092665488233],[73.0,0.43516815534411535],[76.0,-0.2530909093471223],[76.0,1.9550008653880013e-2],[76.0,0.37651812938250373],[79.0,-0.31174093530874813],[78.0,0.41561814669024955],[81.0,-0.2726409180010023],[81.0,0.0]]
 
 midiRange = [0..127] :: [Double]
 
@@ -39,13 +33,6 @@ unfoldScale baseFreq scale =
   let midiCents = map (scalePitchToMidiCent baseFreq) $ scale_cents scale
   in map (tail . closestMidiPitch midiRange) midiCents
 
-argParser :: Parser (FilePath, FilePath, Double)
-argParser =
-  (,,) <$>
-  argPath "sclFile" "Path to an .scl file" <*>
-  argPath "sampleDir" "Path to a directory with samples" <*>
-  argDouble "baseFreq" "Base frequency"
-
 diatonicPitchClasses = Map.fromList [
   ('C', 0)
   , ('D', 2)
@@ -65,8 +52,7 @@ toMidiPitch (pitchClass, accidental, octave) =
         (Just "#") -> 1
         Nothing -> 0
       -- TODO: pass in as command line args
-      soundingMiddleC = (0, 2)
-      octaveOffset = 4 - snd soundingMiddleC
+      octaveOffset = 2
       octave' = (Char.digitToInt octave) + octaveOffset
   -- TODO: sort out Double/Int conflicts
   in fromIntegral (pitchClass' + accidental' + (12 * octave'))
@@ -104,17 +90,29 @@ mapping pitches sampleMap =
       rootPitches = map head pitches
       deviations = map (\x -> round (100 * (x !! 1))) pitches
       midiPitches = map ((head . drop 1) . closestMidiPitch candidates) rootPitches
-  in zip3 rootPitches deviations (map ((Map.!) sampleMap) midiPitches)
+  in List.zip4 [24..] deviations (map ((Map.!) sampleMap) midiPitches) midiPitches
 
--- main :: MonadIO io => io [FilePath]
-main :: IO ()
+formatRegion (rootPitch, deviation, filePath, pitchKeyCenter) =
+  let s = ("<region> trigger=attack pitch_keycenter="%d%" tune="%d%" lokey="%d%" hikey="%d%" sample="%fp%"")
+  in format s (round rootPitch) deviation (round rootPitch) (round rootPitch) ("samples" </> (filename filePath))
+
+header = "<group>\nloop_mode=no_loop\nlovel=0\nhivel=127\n"
+
+argParser :: Parser (FilePath, FilePath, FilePath, Double)
+argParser =
+  (,,,) <$>
+  argPath "sclFile" "Path to an .scl file" <*>
+  argPath "sampleDir" "Path to a directory with samples" <*>
+  argPath "outDir" "Output directory" <*>
+  argDouble "baseFreq" "Base frequency"
+
 main = do
-  (scaleFile, sampleDir, baseFreq) <- options "Create .sfz files for microtonal instruments" argParser
+  (scaleFile, sampleDir, outDir, baseFreq) <- options "Create .sfz files for microtonal instruments" argParser
   scaleFile' <- load ((Text.unpack . format fp) scaleFile)
   samples <- (Turtle.fold (find isAudioFile sampleDir) Fold.list)
-
   let scale = unfoldScale baseFreq scaleFile'
   let sampleMap = testFile samples
   let mapping' = mapping scale sampleMap
-
-  print mapping'
+  mktree outDir
+  shell (format ("ln -s "%fp%" "%fp%"") sampleDir (outDir </> "samples")) empty
+  output (outDir </> "instrument.sfz") $ select ([header] ++ (map formatRegion mapping'))
