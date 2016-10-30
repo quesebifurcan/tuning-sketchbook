@@ -28,4 +28,5 @@ executable tuning
                        foldl >= 1.2.1,
                        text >= 1.2.2.1,
                        filepath >= 1.4.1,
-                       hmt >= 0.15
+                       hmt >= 0.15,
+                       containers >= 0.5.7.1
