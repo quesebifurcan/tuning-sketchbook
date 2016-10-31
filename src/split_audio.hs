@@ -21,7 +21,8 @@ checkExists filePath = do
     True -> return ()
     False -> error $ show filePath ++ "does not exist"
 
-splitAudioFile :: MonadIO m => FilePath -> Double -> FilePath -> m ExitCode
+splitAudioFile ::
+  MonadIO m => FilePath -> Double -> FilePath -> m ExitCode
 splitAudioFile filePath segmentTime out = do
   checkExists filePath
   shell (formatSplitCmd filePath segmentTime out) empty
@@ -41,12 +42,11 @@ getPitch (_, event) = key event
 getOnset :: (t, t1) -> t
 getOnset (onset, _) = onset
 
--- file = Midi.importFile "test_files/test.mid"
-
 uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
 uncons (x:xs) = Just (x, xs)
 
+defaultTempo :: Double
 defaultTempo = 120.0
 
 onsetInSeconds :: (Integral a1, Fractional a) => a -> TimeDiv -> a1 -> a
@@ -77,12 +77,12 @@ getMidiData midiFile' =
       pitches                    = map getPitch events
   in SegmentationData segmentTime pitches
 
-buildFileName :: Integral t => t -> Turtle.FilePath
+buildFileName :: Integral t => t -> FilePath
 buildFileName pitch =
   fromText $
   format (""%d%".aif") pitch
 
-run :: MonadIO io => Turtle.FilePath -> Turtle.FilePath -> Turtle.FilePath -> io ()
+run :: MonadIO io => FilePath -> FilePath -> FilePath -> io ()
 run infileMidi infileAudio outDir = sh (do
     mktree outDir
     dir <- (mktempdir "/tmp" "samples")
@@ -104,7 +104,6 @@ argParser =
   argPath "infileAudio" "audio" <*>
   argPath "outDir" "outdir path"
 
--- TODO: .scl files
 main :: IO ()
 main = do
   (infileMidi, infileAudio, outDir) <- options "TODO" argParser
