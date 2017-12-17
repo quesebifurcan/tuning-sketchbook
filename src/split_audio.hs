@@ -30,7 +30,7 @@ splitAudioFile filePath segmentTime out = do
 trimFile :: MonadIO m => FilePath -> m ()
 trimFile infile = do
   -- TODO: use actual tempfile
-  shell (format ("ffmpeg -y -i "%fp%" -af 'afade=in:st=0:d=0.03,afade=out:st=1.5:d=0.3' /tmp/out-tmp.aif") infile) empty
+  shell (format ("ffmpeg -y -i "%fp%" -af 'afade=in:st=0:d=0.01,afade=out:st=1.5:d=0.3' /tmp/out-tmp.aif") infile) empty
   cp "/tmp/out-tmp.aif" infile
 
 isNoteOn' :: (t, Message) -> Bool
